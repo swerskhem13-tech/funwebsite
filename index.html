@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔒 Secure Identity Verification</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050a0f;
+    --panel: #0a1520;
+    --blue: #00aaff;
+    --cyan: #00ffee;
+    --green: #00ff88;
+    --red: #ff3344;
+    --dim: rgba(0,170,255,0.15);
+    --glow: rgba(0,170,255,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: #cce8ff;
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,170,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,170,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* Corner decorations */
+  .corner { position: fixed; width: 80px; height: 80px; pointer-events: none; }
+  .corner::before, .corner::after { content: ''; position: absolute; background: var(--blue); }
+  .corner::before { width: 2px; height: 40px; }
+  .corner::after { width: 40px; height: 2px; }
+  .corner.tl { top: 20px; left: 20px; }
+  .corner.tr { top: 20px; right: 20px; transform: scaleX(-1); }
+  .corner.bl { bottom: 20px; left: 20px; transform: scaleY(-1); }
+  .corner.br { bottom: 20px; right: 20px; transform: scale(-1); }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: 6px;
+    font-size: 11px;
+    color: rgba(0,170,255,0.5);
+    text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .title {
+    font-size: clamp(22px, 4vw, 32px);
+    font-weight: 700;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    color: var(--blue);
+    text-shadow: 0 0 20px var(--glow);
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: rgba(0,170,255,0.5);
+    letter-spacing: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    margin-bottom: 40px;
+  }
+
+  /* SCANNER BOX */
+  .scanner-wrap {
+    position: relative;
+    width: 280px;
+    height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Animated border frame */
+  .scanner-frame {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(0,170,255,0.2);
+  }
+
+  .scanner-frame::before, .scanner-frame::after {
+    content: '';
+    position: absolute;
+    border-color: var(--blue);
+    border-style: solid;
+    width: 30px; height: 30px;
+  }
+  .scanner-frame::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+  .scanner-frame::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+  .scanner-frame-b::before, .scanner-frame-b::after {
+    content: '';
+    position: absolute;
+    border-color: var(--blue);
+    border-style: solid;
+    width: 30px; height: 30px;
+  }
+  .scanner-frame-b { position: absolute; inset: 0; }
+  .scanner-frame-b::before { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+  .scanner-frame-b::after  { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
+
+  /* SVG fingerprint */
+  .fp-svg {
+    position: relative;
+    z-index: 2;
+    width: 200px;
+    height: 220px;
+    opacity: 0.25;
+    filter: drop-shadow(0 0 6px var(--blue));
+    transition: opacity 0.3s;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .fp-svg path {
+    fill: none;
+    stroke: var(--blue);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+  }
+
+  /* Scan line */
+  .scan-line {
+    position: absolute;
+    left: 10px; right: 10px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    box-shadow: 0 0 10px var(--cyan), 0 0 30px rgba(0,255,238,0.3);
+    top: 10px;
+    opacity: 0;
+    z-index: 5;
+    pointer-events: none;
+    transition: none;
+  }
+
+  /* Status text */
+  .status-area {
+    margin-top: 30px;
+    text-align: center;
+    min-height: 60px;
+  }
+
+  .status-label {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: rgba(0,170,255,0.5);
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .status-msg {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: var(--blue);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 24px;
+  }
+
+  /* Progress dots */
+  .dots {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 16px;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(0,170,255,0.2);
+    border: 1px solid rgba(0,170,255,0.4);
+    transition: all 0.3s;
+  }
+  .dot.active {
+    background: var(--blue);
+    box-shadow: 0 0 8px var(--blue);
+  }
+  .dot.done {
+    background: var(--green);
+    border-color: var(--green);
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  /* Hint */
+  .hint {
+    margin-top: 40px;
+    font-size: 12px;
+    color: rgba(0,170,255,0.3);
+    letter-spacing: 3px;
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+    animation: blink 2s step-end infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Ripple on press */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid var(--cyan);
+    pointer-events: none;
+    animation: rippleOut 0.8s ease-out forwards;
+    z-index: 6;
+  }
+  @keyframes rippleOut {
+    from { width: 10px; height: 10px; opacity: 0.8; transform: translate(-50%,-50%) scale(1); }
+    to   { width: 200px; height: 200px; opacity: 0; transform: translate(-50%,-50%) scale(1); }
+  }
+
+  /* REVEAL OVERLAY */
+  .reveal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px;
+  }
+  .reveal-overlay.show { display: flex; }
+
+  .fool-emoji {
+    font-size: 90px;
+    margin-bottom: 20px;
+    animation: wiggle 0.5s ease-in-out infinite alternate;
+  }
+  @keyframes wiggle {
+    from { transform: rotate(-10deg) scale(1); }
+    to   { transform: rotate(10deg) scale(1.1); }
+  }
+
+  .fool-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(36px, 8vw, 72px);
+    font-weight: 700;
+    letter-spacing: 6px;
+    color: #ffcc00;
+    text-shadow: 0 0 30px rgba(255,200,0,0.6), 0 0 60px rgba(255,200,0,0.3);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .fool-quote {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(13px, 3vw, 18px);
+    color: rgba(255,200,0,0.7);
+    max-width: 520px;
+    line-height: 1.9;
+    margin-bottom: 30px;
+    border-left: 2px solid rgba(255,200,0,0.4);
+    padding-left: 16px;
+    text-align: left;
+  }
+
+  .fool-sub {
+    font-size: 13px;
+    color: rgba(255,150,0,0.5);
+    letter-spacing: 3px;
+    margin-bottom: 30px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .restart-btn {
+    background: transparent;
+    border: 1px solid rgba(255,200,0,0.5);
+    color: #ffcc00;
+    padding: 12px 32px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .restart-btn:hover {
+    background: rgba(255,200,0,0.1);
+    box-shadow: 0 0 20px rgba(255,200,0,0.3);
+  }
+
+  /* Confetti */
+  .confetti-piece {
+    position: fixed;
+    width: 10px; height: 10px;
+    top: -10px;
+    pointer-events: none;
+    z-index: 200;
+    animation: confettiFall linear forwards;
+    border-radius: 2px;
+  }
+  @keyframes confettiFall {
+    to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* Scanning states */
+  .fp-svg.scanning { opacity: 0.6; }
+  .fp-svg.success path { stroke: var(--green); }
+  .fp-svg.success { opacity: 1; filter: drop-shadow(0 0 12px var(--green)); }
+  .status-msg.scanning { color: var(--cyan); }
+  .status-msg.success { color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<div class="header">BIOMETRIC AUTHENTICATION SYSTEM v4.2</div>
+<div class="title">Identity Verify</div>
+<div class="subtitle">FINGERPRINT SCANNER</div>
+
+<div class="scanner-wrap" id="scannerWrap">
+  <div class="scanner-frame"></div>
+  <div class="scanner-frame-b"></div>
+  <div class="scan-line" id="scanLine"></div>
+
+  <!-- Fingerprint SVG -->
+  <svg class="fp-svg" id="fpSvg" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+    <!-- Core loops -->
+    <path d="M100,200 C55,200 20,165 20,120 C20,75 55,40 100,40 C145,40 180,75 180,120 C180,165 145,200 100,200"/>
+    <path d="M100,185 C63,185 35,157 35,120 C35,83 63,55 100,55 C137,55 165,83 165,120 C165,157 137,185 100,185"/>
+    <path d="M100,170 C71,170 50,149 50,120 C50,91 71,70 100,70 C129,70 150,91 150,120 C150,149 129,170 100,170"/>
+    <path d="M100,155 C79,155 65,141 65,120 C65,99 79,85 100,85 C121,85 135,99 135,120 C135,141 121,155 100,155"/>
+    <path d="M100,140 C87,140 80,133 80,120 C80,107 87,100 100,100 C113,100 120,107 120,120 C120,133 113,140 100,140"/>
+    <!-- Arch lines top -->
+    <path d="M60,40 C60,20 80,10 100,10 C120,10 140,20 140,40"/>
+    <path d="M45,55 C42,30 68,5 100,5 C132,5 158,30 155,55"/>
+    <path d="M30,70 C24,40 58,2 100,2 C142,2 176,40 170,70"/>
+    <!-- Vertical lines bottom -->
+    <path d="M68,165 C66,180 67,195 70,210"/>
+    <path d="M80,175 C79,190 80,205 82,218"/>
+    <path d="M92,178 C92,193 93,207 94,220"/>
+    <path d="M108,178 C108,193 107,207 106,220"/>
+    <path d="M120,175 C121,190 120,205 118,218"/>
+    <path d="M132,165 C134,180 133,195 130,210"/>
+    <!-- Side arches -->
+    <path d="M20,95 C10,95 5,108 5,120 C5,132 10,145 20,145"/>
+    <path d="M180,95 C190,95 195,108 195,120 C195,132 190,145 180,145"/>
+    <path d="M35,78 C22,82 12,100 12,120 C12,140 22,158 35,162"/>
+    <path d="M165,78 C178,82 188,100 188,120 C188,140 178,158 165,162"/>
+  </svg>
+</div>
+
+<div class="status-area">
+  <div class="status-label">STATUS</div>
+  <div class="status-msg" id="statusMsg">AWAITING FINGERPRINT</div>
+</div>
+
+<div class="dots">
+  <div class="dot" id="d1"></div>
+  <div class="dot" id="d2"></div>
+  <div class="dot" id="d3"></div>
+  <div class="dot" id="d4"></div>
+  <div class="dot" id="d5"></div>
+</div>
+
+<div class="hint" id="hint">PRESS & HOLD FINGERPRINT</div>
+
+<!-- APRIL FOOLS REVEAL -->
+<div class="reveal-overlay" id="reveal">
+  <div class="fool-emoji">🤡</div>
+  <div class="fool-title">April Fools!</div>
+  <div class="fool-quote" id="foolQuote"></div>
+  <div class="fool-sub">— Happy April 1st 😂</div>
+  <button class="restart-btn" onclick="location.reload()">🔁 Fool Someone Else</button>
+</div>
+
+<script>
+  const quotes = [
+    `"Congratulations! You just gave your fingerprint to a webpage.\nYour FBI agent is laughing.\nYour hacker is crying — of laughter."`,
+    `"Biometric scan complete.\nResult: You will believe ANYTHING.\nSecurity level: Goldfish."`,
+    `"Identity confirmed:\nFirst name: Gullible.\nLast name: Very.\nDate of birth: Not yesterday."`,
+    `"Scan successful!\nWe now own your fingerprint.\nJust kidding. But you really pressed it, didn't you? 😂"`,
+    `"Analysis complete.\nThreat level: None.\nGullibility level: ████████ 100%.\nPlease call your friends."`,
+    `"You pressed a fingerprint on a screen.\nA screen that cannot feel anything.\nBut we felt something — we felt joy."`,
+  ];
+
+  const q = quotes[Math.floor(Math.random() * quotes.length)];
+  document.getElementById('foolQuote').textContent = q;
+
+  let scanning = false;
+  let timer = null;
+  let progress = 0;
+  const fp = document.getElementById('fpSvg');
+  const scanLine = document.getElementById('scanLine');
+  const statusMsg = document.getElementById('statusMsg');
+  const dots = [1,2,3,4,5].map(i => document.getElementById('d' + i));
+  const hint = document.getElementById('hint');
+  const wrap = document.getElementById('scannerWrap');
+
+  const messages = [
+    'READING RIDGES...',
+    'ANALYZING LOOPS...',
+    'MAPPING WHORLS...',
+    'CROSS-REFERENCING...',
+    'IDENTITY CONFIRMED',
+  ];
+
+  function startScan(e) {
+    if (scanning) return;
+    scanning = true;
+    progress = 0;
+    fp.classList.add('scanning');
+    statusMsg.className = 'status-msg scanning';
+    hint.style.opacity = '0';
+
+    // Spawn ripple
+    const r = document.createElement('div');
+    r.className = 'ripple';
+    r.style.left = '50%';
+    r.style.top = '50%';
+    wrap.appendChild(r);
+    setTimeout(() => r.remove(), 800);
+
+    // Animate scan line
+    let linePos = 0;
+    const lineAnim = setInterval(() => {
+      linePos += 2;
+      if (linePos > 300) linePos = 0;
+      scanLine.style.top = linePos + 'px';
+      scanLine.style.opacity = '1';
+    }, 10);
+
+    // Progress dots
+    let step = 0;
+    const stepInterval = setInterval(() => {
+      if (step < 5) {
+        dots[step].classList.add('active');
+        statusMsg.textContent = messages[step];
+        step++;
+      } else {
+        clearInterval(stepInterval);
+        clearInterval(lineAnim);
+        scanLine.style.opacity = '0';
+
+        // All dots done
+        dots.forEach(d => { d.classList.remove('active'); d.classList.add('done'); });
+        fp.classList.remove('scanning');
+        fp.classList.add('success');
+        statusMsg.className = 'status-msg success';
+        statusMsg.textContent = 'ACCESS GRANTED ✓';
+
+        setTimeout(() => {
+          launchReveal();
+        }, 700);
+      }
+    }, 500);
+  }
+
+  function launchReveal() {
+    // Confetti burst
+    const colors = ['#ffcc00','#ff4488','#00ffaa','#00aaff','#ff6600','#cc44ff'];
+    for (let i = 0; i < 80; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti-piece';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = colors[Math.floor(Math.random() * colors.length)];
+      c.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      c.style.animationDelay = (Math.random() * 0.5) + 's';
+      c.style.width = (6 + Math.random() * 10) + 'px';
+      c.style.height = (6 + Math.random() * 10) + 'px';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 4000);
+    }
+    document.getElementById('reveal').classList.add('show');
+  }
+
+  // Touch & mouse events
+  fp.addEventListener('mousedown', startScan);
+  fp.addEventListener('touchstart', e => { e.preventDefault(); startScan(e); }, { passive: false });
+  // Also allow clicking anywhere in the scanner wrap
+  wrap.addEventListener('mousedown', startScan);
+  wrap.addEventListener('touchstart', e => { e.preventDefault(); startScan(e); }, { passive: false });
+</script>
+</body>
+</html>
